@@ -9,15 +9,21 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.sql.Date;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.text.SimpleDateFormat;
 
 import javax.swing.BorderFactory;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 import javax.swing.border.EmptyBorder;
+import javax.swing.table.JTableHeader;
 
 import com.toedter.calendar.JCalendar;
+
+import net.proteanit.sql.DbUtils;
 
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
@@ -39,6 +45,7 @@ import java.awt.Component;
 import javax.swing.JSeparator;
 import javax.swing.Box;
 import javax.swing.JTable;
+import javax.swing.JScrollPane;
 
 public class admin_page extends JFrame {
 	private JPanel contentPane;
@@ -50,7 +57,6 @@ public class admin_page extends JFrame {
 	private JTextField user_b_day;
 	private JTextField user_student_id;
 	private JTable table;
-	private JTable table_1;
 	private JTextField delete_user_id;
 	public static int current_id;
 	private JTextField staff_name;
@@ -69,7 +75,13 @@ public class admin_page extends JFrame {
 	private JTextField issue_student_id;
 	private JTextField issue_isbn;
 	private JTextField delete_issue_id;
-	/**
+	private JTable users_table;
+	private static JTable book_table;
+	private JTable user_table;
+	private JTable staff_table;
+	private JTable issues_table;
+	
+	/**	
 	 * Launch the application.
 	 */
 	public void get_id(int id) {
@@ -79,7 +91,7 @@ public class admin_page extends JFrame {
 		EventQueue.invokeLater(new Runnable() {
 			public void run() {
 				try {
-					
+					Class.forName("com.mysql.jdbc.Driver");
 					admin_page frame = new admin_page();
 					Dimension dimension = Toolkit.getDefaultToolkit().getScreenSize();
 				    int x = (int) ((dimension.getWidth() - frame.getWidth()) / 2);
@@ -99,7 +111,7 @@ public class admin_page extends JFrame {
 	 * Create the frame.
 	 */
 	public admin_page() {
-		
+		Connection con;
 		setUndecorated(true);
 		setResizable(false);
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -152,31 +164,45 @@ public class admin_page extends JFrame {
 		flowLayout_1.setAlignment(FlowLayout.LEFT);
 		
 		JPanel show_users = new JPanel();
+		FlowLayout flowLayout_7 = (FlowLayout) show_users.getLayout();
+		flowLayout_7.setAlignment(FlowLayout.LEFT);
 		show_users.setPreferredSize(new Dimension(490,600));
 		users.add(show_users);
 		
 		
-		String[] columnNames = {"First Name",
-                "Last Name",
-                "Sport",
-                "# of Years",
-                "Vegetarian"};
+
+		ResultSet user_rs = null;
+		try {
+			con = DriverManager.getConnection("jdbc:mysql://localhost:3306/ceng_301","root","");
+			java.sql.Statement stmt=con.createStatement();
+			String user_sql="SELECT `name`, `surname`, `student_id`, `department`, `b_day`,`phone` FROM `user`";
+			user_rs=stmt.executeQuery(user_sql);
+		} catch (SQLException e) {
+			System.out.println("SQLException: " + e.getMessage());
+		    System.out.println("SQLState: " + e.getSQLState());
+		    System.out.println("VendorError: " + e.getErrorCode());
+		}
 		
-		Object[][] data = {
-			    {"Kathy", "Smith",
-			     "Snowboarding", new Integer(5), new Boolean(false)},
-			    {"John", "Doe",
-			     "Rowing", new Integer(3), new Boolean(true)},
-			    {"Sue", "Black",
-			     "Knitting", new Integer(2), new Boolean(false)},
-			    {"Jane", "White",
-			     "Speed reading", new Integer(20), new Boolean(true)},
-			    {"Joe", "Brown",
-			     "Pool", new Integer(10), new Boolean(false)}
-			};
-		table_1 = new JTable(data, columnNames);
-		table_1.setColumnSelectionAllowed(true);
-		show_users.add(table_1);
+		JScrollPane scrollPane_1 = new JScrollPane();
+		show_users.add(scrollPane_1);
+		
+		JTable user_table = new JTable();
+		user_table.setPreferredSize(new Dimension(500,600));
+		scrollPane_1.setViewportView(user_table);
+		scrollPane_1.setViewportBorder(null);
+		user_table.setModel(DbUtils.resultSetToTableModel(user_rs));
+		user_table.getColumnModel().getColumn(0).setHeaderValue("Name");
+		user_table.getColumnModel().getColumn(1).setHeaderValue("Surname");
+		user_table.getColumnModel().getColumn(2).setHeaderValue("Student ID");
+		user_table.getColumnModel().getColumn(3).setHeaderValue("Department");
+		user_table.getColumnModel().getColumn(4).setHeaderValue("Birthdate");
+		user_table.getColumnModel().getColumn(5).setHeaderValue("Phone");
+		
+		
+		
+			
+		
+		
 		
 		JLabel lblNewLabel_8 = new JLabel("");
 		lblNewLabel_8.setPreferredSize(new Dimension(5,600));
@@ -294,8 +320,41 @@ public class admin_page extends JFrame {
 		JPanel staffs = new JPanel();
 
 		JPanel show_staffs = new JPanel();
+		FlowLayout flowLayout_9 = (FlowLayout) show_staffs.getLayout();
+		flowLayout_9.setAlignment(FlowLayout.LEFT);
 		show_staffs.setPreferredSize(new Dimension(490,600));
 		staffs.add(show_staffs);
+		
+		ResultSet staff_rs = null;
+		try {
+			con = DriverManager.getConnection("jdbc:mysql://localhost:3306/ceng_301","root","");
+			java.sql.Statement stmt=con.createStatement();
+			String staff_sql="SELECT `id`, `name`, `surname`, `email`,`b_day`, `phone` FROM `staff`";
+			staff_rs=stmt.executeQuery(staff_sql);
+		} catch (SQLException e) {
+			System.out.println("SQLException: " + e.getMessage());
+		    System.out.println("SQLState: " + e.getSQLState());
+		    System.out.println("VendorError: " + e.getErrorCode());
+		}
+		
+		JScrollPane scrollPane_2 = new JScrollPane();
+		show_staffs.add(scrollPane_2);
+		
+		JTable staff_table = new JTable();
+		staff_table.setPreferredSize(new Dimension(500,600));
+		scrollPane_2.setViewportView(staff_table);
+		scrollPane_2.setViewportBorder(null);
+		staff_table.setModel(DbUtils.resultSetToTableModel(staff_rs));
+		staff_table.getColumnModel().getColumn(0).setHeaderValue("ID");
+		staff_table.getColumnModel().getColumn(0).setPreferredWidth(30);
+		staff_table.getColumnModel().getColumn(1).setHeaderValue("Name");
+		staff_table.getColumnModel().getColumn(1).setPreferredWidth(100);
+		staff_table.getColumnModel().getColumn(2).setHeaderValue("Surname");
+		staff_table.getColumnModel().getColumn(2).setPreferredWidth(100);
+		staff_table.getColumnModel().getColumn(3).setHeaderValue("Email");
+		staff_table.getColumnModel().getColumn(4).setHeaderValue("Birthdate");
+		staff_table.getColumnModel().getColumn(5).setHeaderValue("Phone");
+		
 		
 		JLabel lblNewLabel_8_1 = new JLabel("");
 		lblNewLabel_8_1.setPreferredSize(new Dimension(5, 600));
@@ -398,8 +457,46 @@ public class admin_page extends JFrame {
 		JPanel book = new JPanel();
 		
 		JPanel book_display = new JPanel();
+		FlowLayout flowLayout_8 = (FlowLayout) book_display.getLayout();
+		flowLayout_8.setAlignment(FlowLayout.LEFT);
 		book_display.setPreferredSize(new Dimension(490,600));
+		
+		ResultSet book_rs = null;
+		try {
+			con = DriverManager.getConnection("jdbc:mysql://localhost:3306/ceng_301","root","");
+			java.sql.Statement stmt=con.createStatement();
+			String book_sql="SELECT `book_ID`, `name`, `author_name`, `genre`, `edition`, `ISBN` FROM `book`";
+			book_rs=stmt.executeQuery(book_sql);
+		} catch (SQLException e) {
+			System.out.println("SQLException: " + e.getMessage());
+		    System.out.println("SQLState: " + e.getSQLState());
+		    System.out.println("VendorError: " + e.getErrorCode());
+		}
+		
+		JScrollPane scrollPane = new JScrollPane();
+		book_display.add(scrollPane);
+		JTable book_table_1 = new JTable();
+		book_table_1.setPreferredSize(new Dimension(500,600));
+		scrollPane.setViewportView(book_table_1);
+		scrollPane.setViewportBorder(null);
+		book_table_1.setModel(DbUtils.resultSetToTableModel(book_rs));
+		book_table_1.getColumnModel().getColumn(0).setPreferredWidth(30);
+		book_table_1.getColumnModel().getColumn(0).setHeaderValue("ID");
+		book_table_1.getColumnModel().getColumn(1).setPreferredWidth(250);
+		book_table_1.getColumnModel().getColumn(1).setHeaderValue("Book Name");
+		book_table_1.getColumnModel().getColumn(2).setPreferredWidth(130);
+		book_table_1.getColumnModel().getColumn(2).setHeaderValue("Author Name");
+		book_table_1.getColumnModel().getColumn(3).setPreferredWidth(100);
+		book_table_1.getColumnModel().getColumn(3).setHeaderValue("Genre");
+		book_table_1.getColumnModel().getColumn(4).setPreferredWidth(60);
+		book_table_1.getColumnModel().getColumn(4).setHeaderValue("Edition");
+		book_table_1.getColumnModel().getColumn(5).setPreferredWidth(60);
+		book_table_1.getColumnModel().getColumn(5).setHeaderValue("ISBN");
 		book.add(book_display);
+		
+		
+		
+		
 		JLabel lblNewLabel_8_2 = new JLabel("");
 		lblNewLabel_8_2.setPreferredSize(new Dimension(5, 600));
 		lblNewLabel_8_2.setOpaque(true);
@@ -496,6 +593,27 @@ public class admin_page extends JFrame {
 		JPanel show_issues = new JPanel();
 		show_issues.setPreferredSize(new Dimension(450,600));
 		summary_page.add(show_issues);
+		
+		ResultSet issue_rs = null;
+		try {
+			con = DriverManager.getConnection("jdbc:mysql://localhost:3306/ceng_301","root","");
+			java.sql.Statement stmt=con.createStatement();
+			String issue_sql="SELECT `id`, `student_ID`, `staff_ID`, `ISBN`, 'reserveDate',`returnDate` FROM `issue`";
+			issue_rs=stmt.executeQuery(issue_sql);
+		} catch (SQLException e) {
+			System.out.println("SQLException: " + e.getMessage());
+		    System.out.println("SQLState: " + e.getSQLState());
+		    System.out.println("VendorError: " + e.getErrorCode());
+		}
+		
+		JScrollPane scrollPane_3 = new JScrollPane();
+		show_issues.add(scrollPane_3);
+		
+		JTable issues_table = new JTable();
+		scrollPane_3.setViewportView(issues_table);
+		scrollPane_3.setViewportBorder(null);
+		issues_table.setModel(DbUtils.resultSetToTableModel(issue_rs));
+		scrollPane_3.getViewport().setBackground(Color.WHITE);
 		
 		JLabel lblNewLabel_8_3 = new JLabel("");
 		lblNewLabel_8_3.setPreferredSize(new Dimension(5, 600));
