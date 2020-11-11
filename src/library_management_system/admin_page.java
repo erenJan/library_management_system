@@ -10,10 +10,16 @@ import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.sql.Connection;
+import java.sql.Date;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.EmptyStackException;
 
 import javax.swing.BorderFactory;
 import javax.swing.JFrame;
@@ -39,6 +45,7 @@ import javax.swing.JTextField;
 import javax.swing.JPasswordField;
 import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JComboBox;
+import javax.swing.JFormattedTextField;
 import javax.swing.JRadioButtonMenuItem;
 import javax.swing.JPopupMenu;
 import java.awt.Component;
@@ -54,7 +61,7 @@ public class admin_page extends JFrame {
 	private JTextField user_mail;
 	private JTextField user_phone_number;
 	private JPasswordField user_password;
-	private JTextField user_b_day;
+	private String user_b_day;
 	private JTextField user_student_id;
 	private JTable table;
 	private JTextField delete_user_id;
@@ -261,7 +268,7 @@ public class admin_page extends JFrame {
 		JLabel lblNewLabel_6 = new JLabel("Date of Birth");
 		add_users.add(lblNewLabel_6);
 		
-		user_b_day = new JTextField();
+		JFormattedTextField user_b_day = new JFormattedTextField(new SimpleDateFormat("yyyy-MM-dd"));
 		user_b_day.setPreferredSize(new Dimension(160,20));
 		add_users.add(user_b_day);
 		
@@ -287,6 +294,100 @@ public class admin_page extends JFrame {
 		add_user_btn.setForeground(Color.WHITE);
 		add_user_btn.setBackground(new Color(18, 151, 248));
 		add_user_btn.setOpaque(true);
+		add_user_btn.addMouseListener(new MouseAdapter() {
+			public void mouseClicked(MouseEvent arg0) {
+				try{
+					Connection con;
+					con = DriverManager.getConnection("jdbc:mysql://localhost:3306/ceng_301","root","");
+					if(user_name.getText().isEmpty() || user_surname.getText().isEmpty() || user_mail.getText().isEmpty() || user_password.getText().isEmpty() || user_phone_number.getText().isEmpty() || user_b_day.getText().isEmpty() || user_student_id.getText().isEmpty() || department.getSelectedItem().toString().isEmpty()) {
+						JOptionPane.showMessageDialog(null, "Please fill all fields!");
+						return;
+					}else{
+						java.sql.Statement stmt=con.createStatement(); 
+						String student_id_check="Select * from `user` where `student_id`='"+Integer.parseInt(user_student_id.getText())+"'";
+						ResultSet student_id_rs=stmt.executeQuery(student_id_check);
+						if(student_id_rs.next()){
+							JOptionPane.showMessageDialog(null, "This user already registered in system!");
+							return;
+						}else{
+							String student_mail_check="Select * from `auth` where `email`='"+user_mail.getText()+"'";
+							ResultSet student_mail_rs=stmt.executeQuery(student_mail_check);
+							if(student_mail_rs.next()) {
+								JOptionPane.showMessageDialog(null, "This user already registered in system!");
+								return;
+							}else{
+								if(user_phone_number.getText().length() < 12){
+									if(user_name.getText().length() <20) {
+										if(user_surname.getText().length() < 20) {
+											if(user_mail.getText().length() < 20) {
+												if(user_password.getText().toString().length() < 20) {
+													//inserting user to auth table 
+													String user_status = "user";
+													String auth_user = "INSERT INTO `auth`(`password`, `email`, `status`) VALUES (?,?,?)";
+													PreparedStatement pst_auth = con.prepareStatement(auth_user);
+													pst_auth.setString(1, user_password.getText());
+													pst_auth.setString(2, user_mail.getText().toString());
+													pst_auth.setString(3, user_status);
+													pst_auth.execute();
+													//collecting the given id from auth table
+													con = DriverManager.getConnection("jdbc:mysql://localhost:3306/ceng_301","root","");
+													java.sql.Statement collect_id_stmt=con.createStatement(); 
+													String collect_id = "SELECT * FROM `auth` WHERE `email`='"+user_mail.getText()+"'";
+													ResultSet collect_id_rs=collect_id_stmt.executeQuery(collect_id);
+													collect_id_rs.next();
+													//inserting user to user table
+													java.util.Date theDate = (java.util.Date)user_b_day.getValue();
+													String insert_user = "INSERT INTO `user`(`id`, `name`, `surname`, `email`, `password`, `b_day`, `student_id`, `department`, `phone`) VALUES (?,?,?,?,?,?,?,?,?)";
+													PreparedStatement pst_insert = con.prepareStatement(insert_user);
+													pst_insert.setInt(1, collect_id_rs.getInt("id"));
+													pst_insert.setString(2, user_name.getText());
+													pst_insert.setString(3, user_surname.getText());
+													pst_insert.setString(4, user_mail.getText());
+													pst_insert.setString(5, user_password.getText().toString());
+													pst_insert.setDate(6, new java.sql.Date(theDate.getTime()));
+													pst_insert.setInt(7, Integer.parseInt(user_student_id.getText()));
+													pst_insert.setString(8, department.getSelectedItem().toString());
+													pst_insert.setString(9, user_phone_number.getText());
+													pst_insert.executeUpdate();
+													//update the user table 
+													con = DriverManager.getConnection("jdbc:mysql://localhost:3306/ceng_301","root","");
+													java.sql.Statement user_update_stmt=con.createStatement();
+													String user_update_sql="SELECT `name`, `surname`, `student_id`, `department`, `b_day`,`phone` FROM `user`";
+													ResultSet user_update_rs=user_update_stmt.executeQuery(user_update_sql);
+													scrollPane_1.setViewportView(user_table);
+													scrollPane_1.setViewportBorder(null);
+													user_table.setModel(DbUtils.resultSetToTableModel(user_update_rs));
+													user_table.getColumnModel().getColumn(0).setHeaderValue("Name");
+													user_table.getColumnModel().getColumn(1).setHeaderValue("Surname");
+													user_table.getColumnModel().getColumn(2).setHeaderValue("Student ID");
+													user_table.getColumnModel().getColumn(3).setHeaderValue("Department");
+													user_table.getColumnModel().getColumn(4).setHeaderValue("Birthdate");
+													user_table.getColumnModel().getColumn(5).setHeaderValue("Phone");
+													
+												}else {
+													JOptionPane.showMessageDialog(null, "Password needs to be smaller than 20 characters");
+												}
+											}else {
+												JOptionPane.showMessageDialog(null, "Mail needs to smaller than 20 characters");
+											}
+										}else {
+											JOptionPane.showMessageDialog(null, "Surname needs to be smaller than 20 characters");
+										}
+									}else {
+										JOptionPane.showMessageDialog(null, "Name needs to be smaller than 20 characters");
+									}
+								}else {
+									JOptionPane.showMessageDialog(null, "Phone number can not longer than 11 digits!");
+								}
+							}
+							JOptionPane.showMessageDialog(null, "Added Successfully");
+						}
+					}
+				}catch(Exception e){
+					JOptionPane.showInternalMessageDialog(null, e);
+				}
+			}
+		});
 		panel_2.add(add_user_btn);
 		
 		JSeparator separator = new JSeparator();
@@ -556,6 +657,59 @@ public class admin_page extends JFrame {
 		add_book_btn.setForeground(Color.WHITE);
 		add_book_btn.setFont(new Font("Dialog", Font.BOLD, 16));
 		add_book_btn.setBackground(new Color(18, 151, 248));
+		add_book_btn.addMouseListener(new MouseAdapter() {
+			public void mouseClicked(MouseEvent arg0) {
+				try {
+					Connection con;
+					con = DriverManager.getConnection("jdbc:mysql://localhost:3306/ceng_301","root","");
+					
+					if(book_name.getText().isEmpty() || book_author.getText().isEmpty() || book_genre.getText().isEmpty() || book_edition.getText().isEmpty() || book_isbn.getText().isEmpty()) {
+						JOptionPane.showMessageDialog(null, "Please fill all fields!");
+						return;
+					}else {
+						java.sql.Statement stmt=con.createStatement(); 
+						String isbn_check="Select * from book where `ISBN`='"+Integer.parseInt(book_isbn.getText())+"'";
+						ResultSet isbn_rs=stmt.executeQuery(isbn_check);
+						if(isbn_rs.next()){
+							JOptionPane.showMessageDialog(null, "This book already in library!");
+							return;
+						}else {
+							String insert_book = "INSERT INTO `book`(`name`, `author_name`, `genre`, `edition`, `ISBN`, `edited_by`) VALUES (?,?,?,?,?,?)";
+							PreparedStatement pst = con.prepareStatement(insert_book);
+							pst.setString(1, book_name.getText());
+							pst.setString(2, book_author.getText());
+							pst.setString(3, book_genre.getText());
+							pst.setInt(4, Integer.parseInt(book_edition.getText()));
+							pst.setInt(5, Integer.parseInt(book_isbn.getText()));
+							pst.setInt(6, current_id);
+							pst.executeUpdate();
+							JOptionPane.showMessageDialog(null, "Added Successfully");
+							java.sql.Statement book_stmt=con.createStatement();
+							String book_sql="SELECT `book_ID`, `name`, `author_name`, `genre`, `edition`, `ISBN` FROM `book`";
+							ResultSet book_rs=book_stmt.executeQuery(book_sql);
+							scrollPane.setViewportView(book_table_1);
+							scrollPane.setViewportBorder(null);
+							book_table_1.setModel(DbUtils.resultSetToTableModel(book_rs));
+							book_table_1.getColumnModel().getColumn(0).setPreferredWidth(30);
+							book_table_1.getColumnModel().getColumn(0).setHeaderValue("ID");
+							book_table_1.getColumnModel().getColumn(1).setPreferredWidth(250);
+							book_table_1.getColumnModel().getColumn(1).setHeaderValue("Book Name");
+							book_table_1.getColumnModel().getColumn(2).setPreferredWidth(130);
+							book_table_1.getColumnModel().getColumn(2).setHeaderValue("Author Name");
+							book_table_1.getColumnModel().getColumn(3).setPreferredWidth(100);
+							book_table_1.getColumnModel().getColumn(3).setHeaderValue("Genre");
+							book_table_1.getColumnModel().getColumn(4).setPreferredWidth(60);
+							book_table_1.getColumnModel().getColumn(4).setHeaderValue("Edition");
+							book_table_1.getColumnModel().getColumn(5).setPreferredWidth(60);
+							book_table_1.getColumnModel().getColumn(5).setHeaderValue("ISBN");
+						}
+						
+					}	
+				}catch(Exception e){
+					JOptionPane.showMessageDialog(null, e);
+				}
+			}
+		});
 		panel_2_2_1.add(add_book_btn);
 		
 		JSeparator separator_1_1 = new JSeparator();
@@ -581,6 +735,51 @@ public class admin_page extends JFrame {
 		delete_book.setForeground(Color.WHITE);
 		delete_book.setFont(new Font("Dialog", Font.BOLD, 16));
 		delete_book.setBackground(Color.RED);
+		delete_book.addMouseListener(new MouseAdapter() {
+			public void mouseClicked(MouseEvent arg0) {
+				try {
+					Connection con;
+					con = DriverManager.getConnection("jdbc:mysql://localhost:3306/ceng_301","root","");
+					if(delete_book_id.getText().isEmpty()) {
+						JOptionPane.showMessageDialog(null, "Fill the field for remove a book from library!");		
+					}else{
+						java.sql.Statement stmt=con.createStatement(); 
+						String book_id_check="Select * from book where `book_ID`='"+Integer.parseInt(delete_book_id.getText())+"'";
+						ResultSet book_id_rs=stmt.executeQuery(book_id_check);
+						if(!book_id_rs.next()){
+							JOptionPane.showMessageDialog(null, "Library does not have a book with given ID!");
+							return;
+						}else {
+							String insert_book = "DELETE FROM `book` WHERE `book_ID`='"+Integer.parseInt(delete_book_id.getText())+"'";
+							PreparedStatement pst = con.prepareStatement(insert_book);
+							pst.executeUpdate();
+							JOptionPane.showMessageDialog(null, "Book deleted succsessfully");
+							java.sql.Statement book_stmt=con.createStatement();
+							String book_sql="SELECT `book_ID`, `name`, `author_name`, `genre`, `edition`, `ISBN` FROM `book`";
+							ResultSet book_rs=book_stmt.executeQuery(book_sql);
+							scrollPane.setViewportView(book_table_1);
+							scrollPane.setViewportBorder(null);
+							book_table_1.setModel(DbUtils.resultSetToTableModel(book_rs));
+							book_table_1.getColumnModel().getColumn(0).setPreferredWidth(30);
+							book_table_1.getColumnModel().getColumn(0).setHeaderValue("ID");
+							book_table_1.getColumnModel().getColumn(1).setPreferredWidth(250);
+							book_table_1.getColumnModel().getColumn(1).setHeaderValue("Book Name");
+							book_table_1.getColumnModel().getColumn(2).setPreferredWidth(130);
+							book_table_1.getColumnModel().getColumn(2).setHeaderValue("Author Name");
+							book_table_1.getColumnModel().getColumn(3).setPreferredWidth(100);
+							book_table_1.getColumnModel().getColumn(3).setHeaderValue("Genre");
+							book_table_1.getColumnModel().getColumn(4).setPreferredWidth(60);
+							book_table_1.getColumnModel().getColumn(4).setHeaderValue("Edition");
+							book_table_1.getColumnModel().getColumn(5).setPreferredWidth(60);
+							book_table_1.getColumnModel().getColumn(5).setHeaderValue("ISBN");
+						}
+						
+					}
+				}catch(Exception e){
+					JOptionPane.showMessageDialog(null, e);
+				}
+			}
+		});
 		panel_2_1_1_1.add(delete_book);
 		
 		
