@@ -413,6 +413,52 @@ public class admin_page extends JFrame {
 		add_delete_btn.setForeground(Color.WHITE);
 		add_delete_btn.setFont(new Font("Dialog", Font.BOLD, 16));
 		add_delete_btn.setBackground(Color.red);
+		add_delete_btn.addMouseListener(new MouseAdapter() {
+			public void mouseClicked(MouseEvent arg0) {
+				try {
+					if(delete_user_id.getText().isEmpty()) {
+						JOptionPane.showInternalMessageDialog(null, "Fill enter the field with student ID that you want to remove from system!");
+						return;
+					}else {
+							//check given student id 
+							Connection con;
+							con = DriverManager.getConnection("jdbc:mysql://localhost:3306/ceng_301","root","");
+							java.sql.Statement delete_user_stmt=con.createStatement(); 
+							String delete_user_sql="Select * from `user` where `student_id`='"+Integer.parseInt(delete_user_id.getText())+"'";
+							ResultSet student_id_delete=delete_user_stmt.executeQuery(delete_user_sql);
+							if(student_id_delete.next()) {
+								//delete user with given student id 
+								String delete_user="DELETE FROM `user` WHERE `student_id`='"+Integer.parseInt(delete_user_id.getText())+"'"; 
+								java.sql.Statement delete_now_stmt = con.createStatement();
+								delete_now_stmt.executeLargeUpdate(delete_user);
+								//update user table
+								con = DriverManager.getConnection("jdbc:mysql://localhost:3306/ceng_301","root","");
+								java.sql.Statement user_update_stmt=con.createStatement();
+								String user_update_sql="SELECT `name`, `surname`, `student_id`, `department`, `b_day`,`phone` FROM `user`";
+								ResultSet user_update_rs=user_update_stmt.executeQuery(user_update_sql);
+								scrollPane_1.setViewportView(user_table);
+								scrollPane_1.setViewportBorder(null);
+								user_table.setModel(DbUtils.resultSetToTableModel(user_update_rs));
+								user_table.getColumnModel().getColumn(0).setHeaderValue("Name");
+								user_table.getColumnModel().getColumn(1).setHeaderValue("Surname");
+								user_table.getColumnModel().getColumn(2).setHeaderValue("Student ID");
+								user_table.getColumnModel().getColumn(3).setHeaderValue("Department");
+								user_table.getColumnModel().getColumn(4).setHeaderValue("Birthdate");
+								user_table.getColumnModel().getColumn(5).setHeaderValue("Phone");
+								JOptionPane.showMessageDialog(null, "User removed from system successfully!");
+							}else {
+								JOptionPane.showMessageDialog(null, "There is no user with that student id!");
+								return;
+							}
+						}
+				}catch(Exception e) {
+					JOptionPane.showInternalMessageDialog(null, e);
+				}
+			}
+		});
+		
+		
+		
 		panel_2_1.add(add_delete_btn);
 		tabbedPane.addTab("USERS", users);
 		
@@ -509,7 +555,7 @@ public class admin_page extends JFrame {
 		JLabel lblNewLabel_6_1 = new JLabel("Date of Birth");
 		add_staffs.add(lblNewLabel_6_1);
 		
-		staff_b_day = new JTextField();
+		JFormattedTextField staff_b_day = new JFormattedTextField(new SimpleDateFormat("yyyy-MM-dd"));
 		staff_b_day.setPreferredSize(new Dimension(160, 20));
 		add_staffs.add(staff_b_day);
 		
@@ -524,6 +570,100 @@ public class admin_page extends JFrame {
 		add_staff_btn.setForeground(Color.WHITE);
 		add_staff_btn.setFont(new Font("Dialog", Font.BOLD, 16));
 		add_staff_btn.setBackground(new Color(18, 151, 248));
+		add_staff_btn.addMouseListener(new MouseAdapter() {
+			public void mouseClicked(MouseEvent arg0) {
+				try {
+					if(staff_name.getText().isEmpty() || staff_surname.getText().isEmpty() || staff_mail.getText().isEmpty() || staff_password.getText().isEmpty() || staff_phone.getText().isEmpty() || staff_b_day.getText().isEmpty()){
+						JOptionPane.showMessageDialog(null, "Please fill all fields!");
+						return;
+					}else {
+						Connection con;
+						con = DriverManager.getConnection("jdbc:mysql://localhost:3306/ceng_301","root","");
+						java.sql.Statement staff_stmt=con.createStatement(); 
+						String staff_mail_check="Select * from `auth` where `email`='"+staff_mail.getText()+"'";
+						ResultSet staff_mail_rs=staff_stmt.executeQuery(staff_mail_check);
+						if(staff_mail_rs.next()) {
+							JOptionPane.showMessageDialog(null, "This staff already registered in system!");
+							return;
+						}else {
+							if(staff_name.getText().length() < 20){
+								if(staff_surname.getText().length() < 20) {
+									if(staff_mail.getText().length() < 20) {
+										if(staff_password.getText().toString().length() < 20) {
+											if(staff_phone.getText().length()<12) {
+												con = DriverManager.getConnection("jdbc:mysql://localhost:3306/ceng_301","root","");
+												//inserting user to auth table 
+												String staff_status = "staff";
+												String auth_user = "INSERT INTO `auth`(`password`, `email`, `status`) VALUES (?,?,?)";
+												PreparedStatement pst_auth = con.prepareStatement(auth_user);
+												pst_auth.setString(1, staff_password.getText());
+												pst_auth.setString(2, staff_mail.getText().toString());
+												pst_auth.setString(3, staff_status);
+												pst_auth.execute();
+												//collecting the given id from auth table
+												java.sql.Statement collect_id_stmt=con.createStatement(); 
+												String collect_id = "SELECT * FROM `auth` WHERE `email`='"+staff_mail.getText()+"'";
+												ResultSet collect_id_rs=collect_id_stmt.executeQuery(collect_id);
+												collect_id_rs.next();
+												//inserting user to user table
+												java.util.Date theDate = (java.util.Date)staff_b_day.getValue();
+												String insert_user = "INSERT INTO `staff`(`id`, `name`, `surname`, `email`, `password`, `b_day`, `phone`) VALUES (?,?,?,?,?,?,?)";
+												PreparedStatement pst_insert = con.prepareStatement(insert_user);
+												pst_insert.setInt(1, collect_id_rs.getInt("id"));
+												pst_insert.setString(2, staff_name.getText());
+												pst_insert.setString(3, staff_surname.getText());
+												pst_insert.setString(4, staff_mail.getText());
+												pst_insert.setString(5, staff_password.getText().toString());
+												pst_insert.setDate(6, new java.sql.Date(theDate.getTime()));
+												pst_insert.setString(7, staff_phone.getText());
+												pst_insert.executeUpdate();
+												//update database
+												con = DriverManager.getConnection("jdbc:mysql://localhost:3306/ceng_301","root","");
+												java.sql.Statement stmt=con.createStatement();
+												String staff_sql="SELECT `id`, `name`, `surname`, `email`,`b_day`, `phone` FROM `staff`";
+												ResultSet staff_rs=stmt.executeQuery(staff_sql);
+												staff_table.setPreferredSize(new Dimension(500,600));
+												scrollPane_2.setViewportView(staff_table);
+												staff_table.setModel(DbUtils.resultSetToTableModel(staff_rs));
+												staff_table.getColumnModel().getColumn(0).setHeaderValue("ID");
+												staff_table.getColumnModel().getColumn(0).setPreferredWidth(30);
+												staff_table.getColumnModel().getColumn(1).setHeaderValue("Name");
+												staff_table.getColumnModel().getColumn(1).setPreferredWidth(100);
+												staff_table.getColumnModel().getColumn(2).setHeaderValue("Surname");
+												staff_table.getColumnModel().getColumn(2).setPreferredWidth(100);
+												staff_table.getColumnModel().getColumn(3).setHeaderValue("Email");
+												staff_table.getColumnModel().getColumn(4).setHeaderValue("Birthdate");
+												staff_table.getColumnModel().getColumn(5).setHeaderValue("Phone");
+												
+											}else{
+												JOptionPane.showInternalMessageDialog(null, "Phone must be 11 digits!");
+												return;
+											}
+										}else{
+											JOptionPane.showInternalMessageDialog(null, "Password must be less than 20 letters!");
+											return;
+										}
+									}else{
+										JOptionPane.showInternalMessageDialog(null, "Mail must be less than 20 letters!");
+										return;
+									}
+								}else{
+									JOptionPane.showInternalMessageDialog(null, "Surname must be less than 20 letters!");
+									return;
+								}
+							}else{
+								JOptionPane.showInternalMessageDialog(null, "Name must be less than 20 letters!");
+								return;
+							}
+						}
+						}
+						
+				}catch(Exception e) {
+					JOptionPane.showInternalMessageDialog(null, e);
+					return;
+				}
+			}
+		});
 		panel_2_2.add(add_staff_btn);
 		
 		JSeparator separator_1 = new JSeparator();
@@ -549,6 +689,44 @@ public class admin_page extends JFrame {
 		add_delete_btn_1.setForeground(Color.WHITE);
 		add_delete_btn_1.setFont(new Font("Dialog", Font.BOLD, 16));
 		add_delete_btn_1.setBackground(Color.RED);
+		add_delete_btn_1.addMouseListener(new MouseAdapter() {
+			public void mouseClicked(MouseEvent arg0) {
+				try {
+					Connection con;
+					con = DriverManager.getConnection("jdbc:mysql://localhost:3306/ceng_301","root","");
+					java.sql.Statement staff_stmt=con.createStatement(); 
+					String staff_mail_check="Select * from `staff` where `id`='"+Integer.parseInt(delete_staff_id.getText())+"'";
+					ResultSet staff_mail_rs=staff_stmt.executeQuery(staff_mail_check);
+					if(staff_mail_rs.next()) {
+						//delete user from staff
+						String delete_user="DELETE FROM `staff` WHERE `id`='"+Integer.parseInt(delete_staff_id.getText())+"'"; 
+						java.sql.Statement delete_now_stmt = con.createStatement();
+						delete_now_stmt.executeLargeUpdate(delete_user);
+						//update staff table
+						String staff_sql="SELECT `id`, `name`, `surname`, `email`,`b_day`, `phone` FROM `staff`";
+						ResultSet staff_rs=staff_stmt.executeQuery(staff_sql);
+						staff_table.setPreferredSize(new Dimension(500,600));
+						scrollPane_2.setViewportView(staff_table);
+						scrollPane_2.setViewportBorder(null);
+						staff_table.setModel(DbUtils.resultSetToTableModel(staff_rs));
+						staff_table.getColumnModel().getColumn(0).setHeaderValue("ID");
+						staff_table.getColumnModel().getColumn(0).setPreferredWidth(30);
+						staff_table.getColumnModel().getColumn(1).setHeaderValue("Name");
+						staff_table.getColumnModel().getColumn(1).setPreferredWidth(100);
+						staff_table.getColumnModel().getColumn(2).setHeaderValue("Surname");
+						staff_table.getColumnModel().getColumn(2).setPreferredWidth(100);
+						staff_table.getColumnModel().getColumn(3).setHeaderValue("Email");
+						staff_table.getColumnModel().getColumn(4).setHeaderValue("Birthdate");
+						staff_table.getColumnModel().getColumn(5).setHeaderValue("Phone");
+					}else {
+						JOptionPane.showMessageDialog(null, "There is no staff with taht id!");
+						return;
+					}
+				}catch(Exception e) {
+					JOptionPane.showMessageDialog(null, e);
+				}
+			}
+		});
 		panel_2_1_1.add(add_delete_btn_1);
 
 		
