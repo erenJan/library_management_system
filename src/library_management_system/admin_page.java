@@ -87,6 +87,7 @@ public class admin_page extends JFrame {
 	private JTable user_table;
 	private JTable staff_table;
 	private JTable issues_table;
+	private JTable expired_table;
 	
 	/**	
 	 * Launch the application.
@@ -975,7 +976,7 @@ public class admin_page extends JFrame {
 		try {
 			con = DriverManager.getConnection("jdbc:mysql://localhost:3306/ceng_301","root","");
 			java.sql.Statement stmt=con.createStatement();
-			String issue_sql="SELECT `id`, `student_ID`, `staff_ID`, `ISBN`, 'reserveDate',`returnDate` FROM `issue`";
+			String issue_sql="SELECT `id`, `student_ID`, `staff_ID`, `ISBN`, `reserveDate`,`returnDate` FROM `issue`";
 			issue_rs=stmt.executeQuery(issue_sql);
 		} catch (SQLException e) {
 			System.out.println("SQLException: " + e.getMessage());
@@ -1034,13 +1035,55 @@ public class admin_page extends JFrame {
 		create_issues.setForeground(Color.WHITE);
 		create_issues.setFont(new Font("Dialog", Font.BOLD, 16));
 		create_issues.setBackground(new Color(18, 151, 248));
+		java.util.Date theDate = (java.util.Date)user_b_day.getValue();
 		create_issues.addMouseListener(new MouseAdapter() {
 			@Override
 			public void mouseClicked(MouseEvent arg0) {
-				java.util.Date d = due_date.getDate();
-				SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
-				String x = formatter.format(d);   
-				JOptionPane.showMessageDialog(null, x);
+				try {
+					Connection con;
+					con = DriverManager.getConnection("jdbc:mysql://localhost:3306/ceng_301","root","");
+					if(issue_student_id.getText().isEmpty() || issue_isbn.getText().isEmpty()) {
+						JOptionPane.showMessageDialog(null, "Please fill all fields!");
+						return;
+					}else {
+						java.sql.Statement isbn_check_stmt=con.createStatement(); 
+						String isbn_check="Select * from book where `ISBN`='"+Integer.parseInt(issue_isbn.getText())+"'";
+						ResultSet isbn_rs=isbn_check_stmt.executeQuery(isbn_check);
+						if(isbn_rs.next()) {
+							java.sql.Statement student_stmt=con.createStatement(); 
+							String student_id_check="Select * from user where `student_id`='"+Integer.parseInt(issue_student_id.getText())+"'";
+							ResultSet student_rs=student_stmt.executeQuery(student_id_check);
+							if(student_rs.next()) {
+								long millis=System.currentTimeMillis();  
+								java.sql.Date sqlDate = new java.sql.Date(millis);//current date
+								java.util.Date d = due_date.getDate();
+								SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
+								String x = formatter.format(d);//selected date
+								if(x.compareTo(sqlDate.toString())>0) {
+									String auth_user = "INSERT INTO `issue`(`student_ID`, `staff_ID`, `ISBN`, `reserveDate`, `returnDate`) VALUES (?,?,?,?,?)";
+									PreparedStatement pst_issue = con.prepareStatement(auth_user);
+									pst_issue.setInt(1, Integer.parseInt(issue_student_id.getText()) );
+									pst_issue.setInt(2, current_id);
+									pst_issue.setInt(3, Integer.parseInt(issue_isbn.getText()));
+									pst_issue.setDate(4, new java.sql.Date(sqlDate.getTime()));
+									pst_issue.setString(5, x);
+									pst_issue.execute();
+								}else {
+									JOptionPane.showMessageDialog(null, "Due date must be at least 1 day after today!");
+									return;
+								}
+							}else {
+								JOptionPane.showMessageDialog(null, "There is no user with given student ID!");
+								return;
+							}
+						}else {
+							JOptionPane.showMessageDialog(null, "There is no book with given ISBN!");
+							return;
+						}
+					}
+				}catch(Exception e) {
+					JOptionPane.showMessageDialog(null, e);
+				}
 			}
 		});
 		panel_2_2_1_1.add(create_issues);
@@ -1074,6 +1117,42 @@ public class admin_page extends JFrame {
 		delete_book_1.setForeground(Color.WHITE);
 		delete_book_1.setFont(new Font("Dialog", Font.BOLD, 16));
 		delete_book_1.setBackground(Color.RED);
+		delete_book_1.addMouseListener(new MouseAdapter() {
+			@Override
+			public void mouseClicked(MouseEvent arg0) {
+				try {
+					if(delete_issue_id.getText().isEmpty()) {
+						JOptionPane.showMessageDialog(null, "Enter the id of selected issue!");
+						return;
+					}else {
+						Connection con;
+						con = DriverManager.getConnection("jdbc:mysql://localhost:3306/ceng_301","root","");
+						java.sql.Statement issue_stmt=con.createStatement(); 
+						String issue_id_check="Select * from issue where `id`='"+Integer.parseInt(delete_issue_id.getText())+"'";
+						ResultSet issue_rs=issue_stmt.executeQuery(issue_id_check);
+						if(issue_rs.next()) {
+							String delete_issue = "DELETE FROM `issue` WHERE `id`='"+Integer.parseInt(delete_issue_id.getText())+"'";
+							PreparedStatement pst = con.prepareStatement(delete_issue);
+							pst.executeUpdate();
+							//update issue table
+							String issue_sql="SELECT `id`, `student_ID`, `staff_ID`, `ISBN`, `reserveDate`,`returnDate` FROM `issue`";
+							ResultSet issue_update=issue_stmt.executeQuery(issue_sql);
+							scrollPane_3.setViewportView(issues_table);
+							scrollPane_3.setViewportBorder(null);
+							issues_table.setModel(DbUtils.resultSetToTableModel(issue_update));
+						}else {
+							JOptionPane.showMessageDialog(null, "There is no issue with given id!");
+							return;
+						}
+						
+					}
+				}catch(Exception e) {
+					JOptionPane.showMessageDialog(null, e);
+				}
+			}
+		});
+		
+		
 		panel_2_1_1_1_1.add(delete_book_1);
 		tabbedPane.addTab("SUMMARY PAGE", summary_page);
 		
@@ -1083,9 +1162,44 @@ public class admin_page extends JFrame {
 		
 		tabbedPane.addTab("EXPIRED ISSUES", expired_issues);
 		
+		JScrollPane scrollPane_4 = new JScrollPane();
+		expired_issues.add(scrollPane_4);
+		//expired_result_query
+		LocalDate today = java.time.LocalDate.now(); 
+		ResultSet expired_rs = null;
+		try {
+			con = DriverManager.getConnection("jdbc:mysql://localhost:3306/ceng_301","root","");
+			java.sql.Statement expired_stmt=con.createStatement();
+			String expired_sql="SELECT `id`, `student_ID`, `staff_ID`, `ISBN`, `reserveDate`, `returnDate` FROM `issue` WHERE `returnDate`< CURRENT_DATE";
+			expired_rs=expired_stmt.executeQuery(expired_sql);
+		} catch (SQLException e) {
+			System.out.println("SQLException: " + e.getMessage());
+		    System.out.println("SQLState: " + e.getSQLState());
+		    System.out.println("VendorError: " + e.getErrorCode());
+		}
+		book.add(book_display);
+		
+		expired_table = new JTable();
+		expired_table.setPreferredSize(new Dimension(500,600));
+		scrollPane_4.setViewportView(expired_table);
+		scrollPane_4.setViewportBorder(null);
+		expired_table.setModel(DbUtils.resultSetToTableModel(expired_rs));
+		expired_table.getColumnModel().getColumn(0).setPreferredWidth(30);
+		expired_table.getColumnModel().getColumn(0).setHeaderValue("ID");
+		expired_table.getColumnModel().getColumn(1).setPreferredWidth(150);
+		expired_table.getColumnModel().getColumn(1).setHeaderValue("Student ID");
+		expired_table.getColumnModel().getColumn(2).setPreferredWidth(100);
+		expired_table.getColumnModel().getColumn(2).setHeaderValue("Staff ID");
+		expired_table.getColumnModel().getColumn(3).setPreferredWidth(80);
+		expired_table.getColumnModel().getColumn(3).setHeaderValue("ISBN");
+		expired_table.getColumnModel().getColumn(4).setPreferredWidth(200);
+		expired_table.getColumnModel().getColumn(4).setHeaderValue("Reserve Date");
+		expired_table.getColumnModel().getColumn(5).setPreferredWidth(200);
+		expired_table.getColumnModel().getColumn(5).setHeaderValue("Return Date");
+		
+		
+		
 		panel_1.add(tabbedPane);
 		
 	}
-
-	
 }

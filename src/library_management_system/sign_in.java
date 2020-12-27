@@ -61,9 +61,6 @@ public class sign_in extends JFrame {
 				    frame.setLocation(x, y);
 					frame.setVisible(true);
 					frame.setUndecorated(true);
-					
-					
-				    
 				} catch (Exception e) {
 					e.printStackTrace();
 				}
